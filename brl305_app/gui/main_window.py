@@ -1,12 +1,15 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
 import queue
 import threading
+import tkinter as tk
 
+import customtkinter as ctk
+
+import theme
 from serial_handler import SerialHandler
 from utils.logger import Logger
-from app_settings import load_settings
-from gui.dashboard import DashboardFrame
+from app_settings import load_settings, save_settings
+from gui.login_view import LoginView
+from gui.dashboard import DashboardPanel
 from gui.error_panel import ErrorPanel
 from gui.config_panel import ConfigPanel
 from gui.erpnext_panel import ErpnextPanel
@@ -73,102 +76,135 @@ class SerialWorker(threading.Thread):
 
 class App:
     def __init__(self):
-        self.root = tk.Tk()
+        self.settings = load_settings()
+        theme.init(self.settings.get("appearance", "light"))
+        self.root = ctk.CTk()
         self.root.title("BRL-305 Monitor")
-        self.root.geometry("800x600")
-        self.root.minsize(640, 480)
-        self.root.configure(bg="#1a1a2e")
-
-        self._style = ttk.Style()
-        self._style.theme_use("clam")
-        self._style.configure("TNotebook", background="#1a1a2e")
-        self._style.configure("TNotebook.Tab", background="#2a2a4e",
-                              foreground="#e0e0e0", padding=[10, 3])
-        self._style.map("TNotebook.Tab",
-                        background=[("selected", "#3a3a6e")])
+        self.root.geometry("980x660")
+        self.root.minsize(860, 580)
 
         self.worker = SerialWorker()
         self.logger = Logger()
-        self.settings = load_settings()
+        self.client = None
+        self.erpnext_user = None
         self._connected = False
+        self._last_port = None
 
+        self._container = ctk.CTkFrame(self.root, fg_color=theme.BG, corner_radius=0)
+        self._container.pack(fill="both", expand=True)
+        self._show_login()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    # --- view switching ---
+    def _clear(self):
+        for w in self._container.winfo_children():
+            w.destroy()
+
+    def _show_login(self):
+        self._clear()
+        LoginView(self._container, self.settings, self._on_login).pack(fill="both", expand=True)
+
+    def _on_login(self, client, full_name):
+        self.client = client
+        self.erpnext_user = full_name
+        save_settings(self.settings)
+        self._show_main()
+
+    def _switch_user(self):
+        if self.client:
+            self.client.logout()
+        self.client = None
+        self.erpnext_user = None
+        self._show_login()
+
+    def _show_main(self):
+        self._clear()
         self._build_top_bar()
-        self._build_notebook()
+        self._build_tabs()
         self._poll_results()
         self._poll_logs()
 
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-
+    # --- top bar ---
     def _build_top_bar(self):
-        bar = tk.Frame(self.root, bg="#16162a", padx=10, pady=8)
-        bar.pack(fill=tk.X)
+        bar = ctk.CTkFrame(self._container, fg_color=theme.CARD, corner_radius=0, height=58)
+        bar.pack(fill="x")
+        bar.pack_propagate(False)
 
-        tk.Label(bar, text="Port:", bg="#16162a", fg="#e0e0e0",
-                 font=("Segoe UI", 10)).pack(side=tk.LEFT, padx=(0, 5))
-
-        self.port_var = tk.StringVar()
-        self.port_combo = ttk.Combobox(bar, textvariable=self.port_var,
-                                       width=12, state="readonly")
-        self.port_combo.pack(side=tk.LEFT, padx=5)
-        self._refresh_ports()
-
-        tk.Button(bar, text="Refresh",
-                  command=self._refresh_ports,
-                  bg="#2a2a4e", fg="#e0e0e0", activebackground="#3a3a6e",
-                  font=("Segoe UI", 9), padx=8, pady=1).pack(side=tk.LEFT, padx=5)
-
-        self.connect_btn = tk.Button(bar, text="Connect",
-                                     command=self._on_connect_toggle,
-                                     bg="#2a5a2a", fg="#e0e0e0",
-                                     activebackground="#3a7a3a",
-                                     font=("Segoe UI", 10, "bold"),
-                                     padx=15, pady=2)
-        self.connect_btn.pack(side=tk.LEFT, padx=15)
-
-        self.led_canvas = tk.Canvas(bar, width=20, height=20,
-                                    bg="#16162a", highlightthickness=0)
-        self.led_canvas.pack(side=tk.LEFT, padx=(0, 10))
-        self.led = self.led_canvas.create_oval(2, 2, 18, 18,
-                                               fill="#ff4444", outline="")
-
+        theme.label(bar, "Port", muted=True).pack(side="left", padx=(16, 6))
+        ports = SerialHandler.get_available_ports() or ["(none)"]
+        self.port_var = tk.StringVar(value=ports[0])
+        self.port_combo = ctk.CTkComboBox(bar, values=ports, variable=self.port_var, width=110,
+                                          corner_radius=theme.RADIUS, fg_color=theme.FIELD,
+                                          border_color=theme.BORDER, button_color=theme.BORDER,
+                                          font=theme.font(13))
+        self.port_combo.pack(side="left", padx=4)
+        theme.ghost_button(bar, "Refresh", self._refresh_ports, width=84).pack(side="left", padx=6)
+        self.connect_btn = theme.success_button(bar, "Connect", self._on_connect_toggle, width=110)
+        self.connect_btn.pack(side="left", padx=6)
+        self.led = ctk.CTkFrame(bar, width=12, height=12, corner_radius=6, fg_color=theme.DANGER)
+        self.led.pack(side="left", padx=(10, 6))
         self.status_var = tk.StringVar(value="Disconnected")
-        tk.Label(bar, textvariable=self.status_var, bg="#16162a", fg="#888",
-                 font=("Segoe UI", 9)).pack(side=tk.LEFT, padx=5)
+        ctk.CTkLabel(bar, textvariable=self.status_var, font=theme.font(13),
+                     text_color=theme.MUTED).pack(side="left")
 
-        about_btn = tk.Button(bar, text="?", command=self._show_about,
-                              bg="#2a2a4e", fg="#e0e0e0",
-                              activebackground="#3a3a6e",
-                              font=("Segoe UI", 9, "bold"),
-                              padx=6, pady=0, width=2)
-        about_btn.pack(side=tk.RIGHT)
+        theme.ghost_button(bar, "?", self._show_about, width=34).pack(side="right", padx=(6, 16))
+        mode = "Dark" if ctk.get_appearance_mode() == "Light" else "Light"
+        theme.ghost_button(bar, mode, self._toggle_theme, width=70).pack(side="right", padx=6)
+        theme.ghost_button(bar, "Switch user", self._switch_user, width=110).pack(side="right", padx=6)
 
-    def _build_notebook(self):
-        notebook = ttk.Notebook(self.root)
-        notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        chip = ctk.CTkFrame(bar, fg_color="transparent")
+        chip.pack(side="right", padx=6)
+        name = self.erpnext_user or "?"
+        initials = "".join(p[0] for p in name.split()[:2]).upper() or "?"
+        ctk.CTkLabel(chip, text=initials, width=28, height=28, corner_radius=14,
+                     fg_color=("#dbeafe", "#1e3a8a"), text_color=theme.PRIMARY,
+                     font=theme.font(11, "bold")).pack(side="left", padx=(0, 8))
+        theme.label(chip, name, weight="bold").pack(side="left")
 
-        self.dashboard = DashboardFrame(notebook, self)
-        self.error_panel = ErrorPanel(notebook, self)
-        self.config_panel = ConfigPanel(notebook, self)
-        self.erpnext_tab = ErpnextPanel(notebook, self)
+    def _toggle_theme(self):
+        new = "dark" if ctk.get_appearance_mode() == "Light" else "light"
+        ctk.set_appearance_mode(new)
+        self.settings["appearance"] = new
+        save_settings(self.settings)
+        self._build_top_bar_refresh()
 
-        notebook.add(self.dashboard, text="  Dashboard  ")
-        notebook.add(self.error_panel, text="  Errors  ")
-        notebook.add(self.config_panel, text="  Config  ")
-        notebook.add(self.erpnext_tab, text="  ERPNext  ")
+    def _build_top_bar_refresh(self):
+        # rebuild main so the theme-toggle button label flips
+        self._show_main()
 
+    # --- tabs ---
+    def _build_tabs(self):
+        self.tabs = ctk.CTkTabview(self._container, fg_color=theme.BG, corner_radius=theme.RADIUS,
+                                   segmented_button_selected_color=theme.PRIMARY,
+                                   segmented_button_selected_hover_color=theme.PRIMARY_HI,
+                                   text_color=theme.FG)
+        self.tabs.pack(fill="both", expand=True, padx=12, pady=12)
+        for name in ("Dashboard", "Errors", "Config", "ERPNext"):
+            self.tabs.add(name)
+        self.dashboard = DashboardPanel(self.tabs.tab("Dashboard"), self)
+        self.dashboard.pack(fill="both", expand=True)
+        self.error_panel = ErrorPanel(self.tabs.tab("Errors"), self)
+        self.error_panel.pack(fill="both", expand=True)
+        self.config_panel = ConfigPanel(self.tabs.tab("Config"), self)
+        self.config_panel.pack(fill="both", expand=True)
+        self.erpnext_tab = ErpnextPanel(self.tabs.tab("ERPNext"), self)
+        self.erpnext_tab.pack(fill="both", expand=True)
+        self.tabs.set("ERPNext")
+
+    # --- serial ---
     def _refresh_ports(self):
-        ports = SerialHandler.get_available_ports()
-        self.port_combo["values"] = ports
-        if ports and not self.port_var.get():
-            self.port_combo.current(0)
+        ports = SerialHandler.get_available_ports() or ["(none)"]
+        self.port_combo.configure(values=ports)
+        if self.port_var.get() not in ports:
+            self.port_var.set(ports[0])
 
     def _on_connect_toggle(self):
         if self._connected:
             self.worker.submit("disconnect")
         else:
             self._last_port = self.port_var.get()
-            if not self._last_port:
-                messagebox.showwarning("Connect", "Select a COM port first.")
+            if not self._last_port or self._last_port == "(none)":
+                self._toast("Select a COM port first.")
                 return
             self.worker.submit("connect", self._last_port)
 
@@ -177,21 +213,24 @@ class App:
         return SerialHandler.get_available_ports()
 
     def _set_connected(self, port):
-        self.connect_btn.configure(text="Disconnect", bg="#5a2a2a",
-                                   activebackground="#7a3a3a")
-        self.led_canvas.itemconfig(self.led, fill="#44ff44")
-        self.status_var.set(f"Connected: {port}")
-        self.dashboard.stop_auto_poll()
+        self.connect_btn.configure(text="Disconnect", fg_color=theme.DANGER, hover_color=theme.DANGER)
+        self.led.configure(fg_color=theme.SUCCESS)
+        self.status_var.set("Connected: {}".format(port))
 
     def _set_disconnected(self):
-        self.connect_btn.configure(text="Connect", bg="#2a5a2a",
-                                   activebackground="#3a7a3a")
-        self.led_canvas.itemconfig(self.led, fill="#ff4444")
+        self.connect_btn.configure(text="Connect", fg_color=theme.SUCCESS, hover_color=theme.SUCCESS_HI)
+        self.led.configure(fg_color=theme.DANGER)
         self.status_var.set("Disconnected")
-        self.dashboard.stop_auto_poll()
 
     def submit(self, cmd, *args, **kwargs):
         self.worker.submit(cmd, *args, **kwargs)
+
+    def _toast(self, msg):
+        try:
+            import tkinter.messagebox as mb
+            mb.showinfo("BRL-305", msg)
+        except Exception:
+            print(msg)
 
     def _poll_results(self):
         try:
@@ -214,61 +253,39 @@ class App:
         elif cmd == "read_error_detail":
             self.error_panel.add_error_detail(result)
         elif cmd == "set_preset":
-            if result:
-                messagebox.showinfo("Set Preset", "Preset sent successfully.")
-            else:
-                messagebox.showerror("Set Preset", "Failed to send preset.")
+            self._toast("Preset sent." if result else "Failed to send preset.")
         elif cmd == "write_error_detail":
-            if result:
-                messagebox.showinfo("Edit Detail", "Detail written successfully.")
-            else:
-                messagebox.showerror("Edit Detail", "Failed to write detail.")
+            self._toast("Detail written." if result else "Failed to write detail.")
         elif cmd == "connect":
             if result:
                 self._connected = True
                 self._set_connected(self._last_port)
             else:
-                messagebox.showerror("Connect", f"Failed to connect to {self._last_port}.")
+                self._toast("Failed to connect to {}.".format(self._last_port))
         elif cmd == "disconnect":
             self._connected = False
             self._set_disconnected()
-        elif cmd == "get_available_ports":
-            pass
         elif cmd == "read_full_roll":
             self.erpnext_tab.on_machine_reading(result)
-
         self._log_command(cmd, result)
 
     def _log_command(self, cmd, result):
-        if cmd in ("read_meters", "read_weight", "read_error_count",
-                   "read_error_detail", "reset_meters", "set_preset",
-                   "write_error_detail"):
-            tx_map = {
-                "read_meters": "R",
-                "read_weight": "T",
-                "read_error_count": "W",
-                "read_error_detail": "X",
-                "reset_meters": "S",
-                "set_preset": "U",
-                "write_error_detail": "V",
-            }
-            tx = tx_map.get(cmd, cmd)
+        tx_map = {"read_meters": "R", "read_weight": "T", "read_error_count": "W",
+                  "read_error_detail": "X", "reset_meters": "S", "set_preset": "U",
+                  "write_error_detail": "V"}
+        if cmd in tx_map:
             rx = str(result) if result is not None else "N/A"
-            rx_bytes = len(str(result)) if result is not None else 0
-            self.logger.log(tx, rx, rx_bytes)
+            self.logger.log(tx_map[cmd], rx, len(str(result)) if result is not None else 0)
 
     def _poll_logs(self):
-        self.config_panel.refresh_logs(self.logger.get_recent())
+        try:
+            self.config_panel.refresh_logs(self.logger.get_recent())
+        except Exception:
+            pass
         self.root.after(2000, self._poll_logs)
 
     def _show_about(self):
-        messagebox.showinfo(
-            "About BRL-305 Monitor",
-            "BRL-305 RS232 Desktop Monitor\n"
-            "Version 1.0.0\n\n"
-            "Protocol: R/T/S/U/W/X/V commands\n"
-            "Target: Windows 7 x86\n"
-        )
+        self._toast("BRL-305 Monitor 1.0.0\nRS232 fabric inspection + ERPNext tunnel\nTarget: Windows 7 x86")
 
     def _on_close(self):
         if self._connected:
