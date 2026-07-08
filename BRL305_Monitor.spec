@@ -1,15 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 
+# Bundle certifi's CA bundle so the frozen exe verifies TLS without the Windows cert store
+# (a frozen app can't rely on certifi.where() unless the data file is collected).
+certifi_datas, certifi_binaries, certifi_hiddenimports = collect_all('certifi')
 
 a = Analysis(
     ['main.py'],
     pathex=['.'],
-    binaries=[],
-    datas=[],
-    hiddenimports=['gui.main_window', 'gui.dashboard', 'gui.error_panel', 'gui.config_panel', 'models.data_models', 'utils.logger', 'serial_handler'],
+    binaries=certifi_binaries,
+    datas=certifi_datas,
+    hiddenimports=['gui.main_window', 'gui.dashboard', 'gui.error_panel', 'gui.config_panel', 'gui.erpnext_panel', 'models.data_models', 'utils.logger', 'serial_handler', 'erpnext_client', 'outbox', 'defect_map', 'inspection_flow', 'app_settings', 'preflight'] + certifi_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
