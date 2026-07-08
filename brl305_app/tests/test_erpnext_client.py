@@ -83,3 +83,67 @@ def test_request_sends_auth_header_and_parses_message():
     assert out["grade"] == "2"
     assert captured["auth"] == "token KEY:SEC"
     assert json.loads(captured["body"])["job_card"] == "JC-9"
+
+
+def test_login_sets_user_and_csrf_then_posts_with_cookie():
+    seen = {}
+
+    class H(BaseHTTPRequestHandler):
+        def do_POST(self):
+            n = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(n).decode()
+            if self.path == "/api/method/login":
+                seen["login_body"] = body
+                self.send_response(200)
+                self.send_header("Set-Cookie", "sid=ABC123; Path=/")
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"message": "Logged In", "full_name": "Ahmed Ali"}')
+            else:  # a whitelisted method call
+                seen["cookie"] = self.headers.get("Cookie")
+                seen["csrf"] = self.headers.get("X-Frappe-CSRF-Token")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"message": {"grade": "1"}}')
+
+        def do_GET(self):  # /app -> desk HTML carrying the csrf token
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(b'<script>frappe.csrf_token = "a1b2c3d4e5";</script>')
+
+        def log_message(self, *a):
+            pass
+
+    srv = _run_server(H)
+    port = srv.server_address[1]
+    c = ErpnextClient("http://127.0.0.1:{}".format(port), verify_tls=False)
+    out = c.login("ahmed.ali", "secret")
+    assert c.user == "ahmed.ali"
+    assert "usr=ahmed.ali" in seen["login_body"]
+    r = c.finalize_inspection("JC-1")
+    srv.shutdown()
+    assert r["grade"] == "1"
+    assert "sid=ABC123" in (seen["cookie"] or "")   # session cookie sent
+    assert seen["csrf"] == "a1b2c3d4e5"                 # csrf header sent (no token mode)
+
+
+def test_login_bad_credentials_raises_autherror():
+    from erpnext_client import AuthError
+
+    class H(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.send_response(401)
+            self.end_headers()
+            self.wfile.write(b'{"message":"Invalid login"}')
+
+        def log_message(self, *a):
+            pass
+
+    srv = _run_server(H)
+    port = srv.server_address[1]
+    c = ErpnextClient("http://127.0.0.1:{}".format(port), verify_tls=False)
+    with pytest.raises(AuthError):
+        c.login("x", "y")
+    srv.shutdown()
