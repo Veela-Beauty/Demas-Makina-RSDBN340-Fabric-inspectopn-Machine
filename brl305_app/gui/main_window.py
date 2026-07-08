@@ -5,6 +5,7 @@ import threading
 
 from serial_handler import SerialHandler
 from utils.logger import Logger
+from app_settings import load_settings
 from gui.dashboard import DashboardFrame
 from gui.error_panel import ErrorPanel
 from gui.config_panel import ConfigPanel
@@ -88,6 +89,7 @@ class App:
 
         self.worker = SerialWorker()
         self.logger = Logger()
+        self.settings = load_settings()
         self._connected = False
 
         self._build_top_bar()
