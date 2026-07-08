@@ -1161,3 +1161,18 @@ Note pass/fail + any Windows-specific fixes in `DEVLOG.md`, then commit.
 - **Spec coverage:** §3 modules → Tasks 2–7; §4 API → Task 2; §5 mapping → Tasks 4–5; §6 modules → Tasks 2–7; §7 Win7 DLL guardrail → Task 8; §8 offline/exactly-once → Task 3; §11 test ladder L1 → Tasks 2–5,9, L2 → Task 10, L3 → on-site (out of plan scope, noted); §12 file plan → all tasks. Covered.
 - **Placeholder scan:** every code step shows full code; commands have expected output. GUI Tasks 6/7 reference the existing file's own patterns (read-first steps) rather than inventing a store — intentional, since the exact notebook/settings variable names must be read from `main_window.py`/`config_panel.py`.
 - **Type consistency:** `read_full_roll()` returns `{length, weight, defects}` (Task 6b) consumed by `on_read`/`on_save` (Task 6); `InspectionController.queue_save(...)` signature matches its test and the panel call; `sender(kind, job_card, payload)` matches `drain`'s contract in Task 3.
+
+---
+
+## Resume here (2026-07-08)
+- **All 10 plan tasks shipped:** T1 (a21a045), T2 (543e49a), T3 (fdc655b), T4 (fd88736), T5 (88e8e70),
+  T6 (9fd0758), T6b (929d125), T7 (9df2e5d), T8 (daaa406), T9 (503f452, relogin da6e44c), T10 (ec3623e).
+- **Shipped beyond the plan (same branch):** minimal Inno Setup installer + GitHub Actions build (0774ad2,
+  d46ebe2, f974c6a); per-inspector session login (2d843a4); CustomTkinter redesign, Sanad slate, light
+  default (331acb3). Released v1.0.0 then v1.1.0.
+- **Verified:** full E2E on live newjacquard (login, CSRF, get_context, save grade 1, finalize QI
+  MAT-QA-2026-00033); the login-based integration test passes.
+- **Next up:** Ibrahim installs v1.1.0 on the factory PC (Layer 3, serial + real push); optional dedicated
+  inspector ERPNext user; verify CSRF across a session timeout.
+- **Decisions this session:** CustomTkinter over PySide6 (Win7-safe modern UI); session login for
+  attribution (no ERPNext change); installer built by CI so the artifact lands on GitHub.
