@@ -8,6 +8,7 @@ from utils.logger import Logger
 from gui.dashboard import DashboardFrame
 from gui.error_panel import ErrorPanel
 from gui.config_panel import ConfigPanel
+from gui.erpnext_panel import ErpnextPanel
 
 
 class SerialWorker(threading.Thread):
@@ -54,6 +55,8 @@ class SerialWorker(threading.Thread):
                 return h.write_error_detail(*args, **kwargs)
             elif cmd == "get_available_ports":
                 return h.get_available_ports()
+            elif cmd == "read_full_roll":
+                return h.read_full_roll(*args, **kwargs)
         except Exception:
             return None
 
@@ -144,10 +147,12 @@ class App:
         self.dashboard = DashboardFrame(notebook, self)
         self.error_panel = ErrorPanel(notebook, self)
         self.config_panel = ConfigPanel(notebook, self)
+        self.erpnext_tab = ErpnextPanel(notebook, self)
 
         notebook.add(self.dashboard, text="  Dashboard  ")
         notebook.add(self.error_panel, text="  Errors  ")
         notebook.add(self.config_panel, text="  Config  ")
+        notebook.add(self.erpnext_tab, text="  ERPNext  ")
 
     def _refresh_ports(self):
         ports = SerialHandler.get_available_ports()
@@ -227,6 +232,8 @@ class App:
             self._set_disconnected()
         elif cmd == "get_available_ports":
             pass
+        elif cmd == "read_full_roll":
+            self.erpnext_tab.on_machine_reading(result)
 
         self._log_command(cmd, result)
 
