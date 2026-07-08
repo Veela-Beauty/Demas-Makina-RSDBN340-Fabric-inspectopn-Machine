@@ -186,6 +186,25 @@ class SerialHandler:
         except serial.SerialException:
             return False
 
+    def read_full_roll(self, deep_scan=True):
+        """One-shot per-roll read for the ERPNext tab: length, weight, and (if deep_scan)
+        every defect. Missing reads degrade to 0/empty rather than raising."""
+        def _f(v):
+            try:
+                return float(v)
+            except (ValueError, TypeError):
+                return 0.0
+
+        defects = []
+        if deep_scan:
+            count = self.read_error_count() or 0
+            for n in range(1, int(count) + 1):
+                d = self.read_error_detail(n)
+                if d:
+                    defects.append(d)
+        return {"length": _f(self.read_meters()),
+                "weight": _f(self.read_weight()), "defects": defects}
+
     @staticmethod
     def get_available_ports():
         return [port.device for port in serial.tools.list_ports.comports()]
