@@ -42,7 +42,7 @@ jobs:
         run: choco install innosetup -y --no-progress
 
       - name: Build installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DSrcDir=staging installer\BRL305.iss'
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DSrcDir=${{ github.workspace }}\staging" installer\BRL305.iss'
 
       - name: Silent install test (proves the installer works)
         shell: pwsh
