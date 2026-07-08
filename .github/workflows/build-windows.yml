@@ -1,0 +1,59 @@
+name: build-windows
+
+on:
+  push:
+    branches: [feat/erpnext-inspection-tunnel, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.8 x86 (Windows 7 target)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+          architecture: x86
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r brl305_app/requirements.txt
+
+      - name: Run tests (non-GUI)
+        working-directory: brl305_app
+        run: python -m pytest tests --ignore=tests/test_phase7.py -q
+
+      - name: Build exe (PyInstaller, one-file, 32-bit)
+        run: |
+          copy BRL305_Monitor.spec brl305_app\
+          cd brl305_app
+          python -m PyInstaller --noconfirm BRL305_Monitor.spec
+
+      - name: Stage installer inputs
+        run: |
+          mkdir staging
+          copy brl305_app\dist\BRL305_Monitor.exe staging\
+          curl -L -o staging\vc_redist.x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DSrcDir=staging installer\BRL305.iss'
+
+      - name: Silent install test (proves the installer works)
+        shell: pwsh
+        run: |
+          Start-Process -FilePath installer\Output\BRL305_Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $exe = "${env:ProgramFiles(x86)}\BRL305 Monitor\BRL305_Monitor.exe"
+          if (Test-Path $exe) { Write-Host "INSTALL_OK -> $exe" } else { Write-Error "INSTALL_FAIL"; exit 1 }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BRL305_Setup
+          path: installer/Output/BRL305_Setup.exe
+          if-no-files-found: error
