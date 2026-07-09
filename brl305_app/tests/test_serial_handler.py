@@ -105,5 +105,20 @@ class TestLogger(unittest.TestCase):
         self.assertRegex(entry, r"\[\d{2}:\d{2}:\d{2}\] TX: T \| RX: 021\.76 \(8 bytes\)")
 
 
+def test_read_full_roll_aggregates(monkeypatch):
+    h = SerialHandler()
+    monkeypatch.setattr(h, "read_meters", lambda: "87.45")
+    monkeypatch.setattr(h, "read_weight", lambda: "21.76")
+    monkeypatch.setattr(h, "read_error_count", lambda: 2)
+    monkeypatch.setattr(h, "read_error_detail",
+                        lambda n: {"error_number": n, "detail_text": "HOLE",
+                                   "meter_at_fault": "5.0"})
+    out = h.read_full_roll(deep_scan=True)
+    assert out["length"] == 87.45
+    assert out["weight"] == 21.76
+    assert len(out["defects"]) == 2
+    assert out["defects"][0]["detail_text"] == "HOLE"
+
+
 if __name__ == "__main__":
     unittest.main()

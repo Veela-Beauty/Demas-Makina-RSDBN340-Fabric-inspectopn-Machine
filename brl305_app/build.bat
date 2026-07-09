@@ -28,7 +28,18 @@ if errorlevel 1 (
 )
 
 echo.
-echo === [3/3] Running PyInstaller from spec ===
+echo === [3/4] Installing build deps (certifi needed by the spec's collect_all) ===
+%PYTHON% -m pip install -r requirements.txt --quiet
+%PYTHON% -c "import ssl, sqlite3, certifi; print('tunnel deps OK:', certifi.where())"
+if errorlevel 1 (
+    echo ERROR: ssl/sqlite3/certifi not importable in the build Python; the exe would fail TLS.
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo === [4/4] Running PyInstaller from spec ===
 %PYTHON% -m PyInstaller BRL305_Monitor.spec
 
 if errorlevel 1 (
@@ -38,6 +49,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo.
+echo Reminder: on a BARE Windows 7 x86 box, install "VC++ 2015-2022 Redistributable x86"
+echo once (UCRT). The app's startup preflight will name any missing DLL instead of crashing.
 echo.
 echo ============================================================
 echo  BUILD COMPLETE: dist\BRL305_Monitor.exe
