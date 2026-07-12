@@ -27,7 +27,16 @@ class WebPanel(ctk.CTkFrame):
     def __init__(self, master, app):
         super().__init__(master, fg_color=theme.BG)
         self.app = app
+        self._auto_opened = False
         self._build()
+
+    def on_tab_shown(self):
+        # First time the inspector opens this tab, auto-load the inspection page (the default view)
+        # — no button click needed. The saved session auto-signs-in, so no extra login.
+        if self._auto_opened:
+            return
+        self._auto_opened = True
+        self._open(wv.INSPECTION_PATH)
 
     def _base_url(self):
         return (self.app.settings or {}).get("base_url", "")

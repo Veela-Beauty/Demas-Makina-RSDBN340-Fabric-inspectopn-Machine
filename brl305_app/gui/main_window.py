@@ -211,7 +211,7 @@ class App:
         self.tabs = ctk.CTkTabview(self._container, fg_color=theme.BG, corner_radius=theme.RADIUS,
                                    segmented_button_selected_color=theme.PRIMARY,
                                    segmented_button_selected_hover_color=theme.PRIMARY_HI,
-                                   text_color=theme.FG)
+                                   text_color=theme.FG, command=self._on_tab_change)
         self.tabs.pack(fill="both", expand=True, padx=12, pady=12)
         for name in ("Dashboard", "Errors", "Config", "Inspection", "Prime Textile"):
             self.tabs.add(name)
@@ -226,6 +226,11 @@ class App:
         self.web_tab = WebPanel(self.tabs.tab("Prime Textile"), self)
         self.web_tab.pack(fill="both", expand=True)
         self.tabs.set("Inspection")
+
+    def _on_tab_change(self):
+        # When the inspector opens the Prime Textile tab, auto-load the inspection page.
+        if getattr(self, "web_tab", None) and self.tabs.get() == "Prime Textile":
+            self.web_tab.on_tab_shown()
 
     # --- serial ---
     def _refresh_ports(self):
