@@ -1,10 +1,10 @@
-"""Thin Frappe/ERPNext HTTPS client for the fabric-inspection tunnel.
+"""Thin Frappe/Prime Textile HTTPS client for the fabric-inspection tunnel.
 
 Deliberately uses the standard library (urllib + ssl) instead of `requests`, so the
 frozen Win7 x86 exe gains NO new compiled dependency — only certifi (data-only .pem).
 
 Two auth modes:
-- session login (usr/pwd): every call runs AS the inspector, so ERPNext attributes each
+- session login (usr/pwd): every call runs AS the inspector, so Prime Textile attributes each
   inspection to their account. This is the shop-floor mode (login per shift).
 - token (api_key/api_secret): a service account, for admin/headless use.
 """

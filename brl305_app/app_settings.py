@@ -1,4 +1,4 @@
-"""Tiny JSON settings store for the app (ERPNext connection, deep-scan, TLS).
+"""Tiny JSON settings store for the app (Prime Textile connection, deep-scan, TLS).
 Lives next to the outbox/defect-map under ~/.brl305 so all runtime state is in one place."""
 import json
 import os

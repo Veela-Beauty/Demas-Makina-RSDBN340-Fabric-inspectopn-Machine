@@ -15,6 +15,7 @@ from gui.dashboard import DashboardPanel
 from gui.error_panel import ErrorPanel
 from gui.config_panel import ConfigPanel
 from gui.erpnext_panel import ErpnextPanel
+from gui.web_panel import WebPanel
 
 
 class SerialWorker(threading.Thread):
@@ -212,7 +213,7 @@ class App:
                                    segmented_button_selected_hover_color=theme.PRIMARY_HI,
                                    text_color=theme.FG)
         self.tabs.pack(fill="both", expand=True, padx=12, pady=12)
-        for name in ("Dashboard", "Errors", "Config", "ERPNext"):
+        for name in ("Dashboard", "Errors", "Config", "Inspection", "Prime Textile"):
             self.tabs.add(name)
         self.dashboard = DashboardPanel(self.tabs.tab("Dashboard"), self)
         self.dashboard.pack(fill="both", expand=True)
@@ -220,9 +221,11 @@ class App:
         self.error_panel.pack(fill="both", expand=True)
         self.config_panel = ConfigPanel(self.tabs.tab("Config"), self)
         self.config_panel.pack(fill="both", expand=True)
-        self.erpnext_tab = ErpnextPanel(self.tabs.tab("ERPNext"), self)
+        self.erpnext_tab = ErpnextPanel(self.tabs.tab("Inspection"), self)
         self.erpnext_tab.pack(fill="both", expand=True)
-        self.tabs.set("ERPNext")
+        self.web_tab = WebPanel(self.tabs.tab("Prime Textile"), self)
+        self.web_tab.pack(fill="both", expand=True)
+        self.tabs.set("Inspection")
 
     # --- serial ---
     def _refresh_ports(self):

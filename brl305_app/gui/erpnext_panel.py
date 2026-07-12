@@ -1,4 +1,4 @@
-"""ERPNext tab (CustomTkinter): select a roll, pull its Job Card context, read the machine,
+"""Prime Textile tab (CustomTkinter): select a roll, pull its Job Card context, read the machine,
 and push the inspection under the signed-in inspector's account via the offline-safe outbox.
 Logic lives in InspectionController; this is a thin view.
 
@@ -151,14 +151,14 @@ class ErpnextPanel(ctk.CTkFrame):
         if unmapped:
             mb.showinfo(i18n._("erp.classify_title"),
                         i18n._("erp.classify_msg").format(len(unmapped)))
-        mb.showinfo("ERPNext", i18n._("erp.queued_save").format(self._job_card, len(rows)))
+        mb.showinfo(i18n._("cfg.erpnext"), i18n._("erp.queued_save").format(self._job_card, len(rows)))
 
     def on_finalize(self):
         if not (self._controller and self._job_card):
             mb.showwarning(i18n._("cfg.erpnext"), i18n._("erp.load_first"))
             return
         self._controller.queue_finalize(self._job_card)
-        mb.showinfo("ERPNext", i18n._("erp.queued_finalize").format(self._job_card))
+        mb.showinfo(i18n._("cfg.erpnext"), i18n._("erp.queued_finalize").format(self._job_card))
 
     def _drain_loop(self):
         while True:

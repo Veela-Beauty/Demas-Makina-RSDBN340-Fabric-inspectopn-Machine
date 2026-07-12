@@ -187,7 +187,7 @@ class SerialHandler:
             return False
 
     def read_full_roll(self, deep_scan=True):
-        """One-shot per-roll read for the ERPNext tab: length, weight, and (if deep_scan)
+        """One-shot per-roll read for the Prime Textile tab: length, weight, and (if deep_scan)
         every defect. Missing reads degrade to 0/empty rather than raising."""
         def _f(v):
             try:

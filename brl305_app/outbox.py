@@ -1,5 +1,5 @@
 """SQLite store-and-forward queue for inspection pushes. A network drop never loses a roll;
-replays are safe because the ERPNext methods are idempotent per job_card."""
+replays are safe because the Prime Textile methods are idempotent per job_card."""
 import json
 import sqlite3
 import threading

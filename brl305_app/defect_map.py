@@ -1,4 +1,4 @@
-"""Map the machine's 16-char defect text to an ERPNext Fabric Defect Type.
+"""Map the machine's 16-char defect text to an Prime Textile Fabric Defect Type.
 The machine reports a position + free text, not a real defect type, so recurring texts are
 learned once and remembered; anything unmapped is handed back for the operator to classify."""
 import json

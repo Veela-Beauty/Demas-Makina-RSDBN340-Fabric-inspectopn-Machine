@@ -4,3 +4,10 @@ certifi==2024.8.30
 customtkinter==5.2.2
 darkdetect==0.8.0
 Pillow==9.5.0
+
+# In-app Prime Textile web view (Approach A: Edge WebView2 / Chromium 109). Windows-only and
+# OPTIONAL — the app degrades to the system browser without them, so they carry a sys_platform
+# marker (Linux/dev + CI test steps skip them). VALIDATE these pins on the Win7 x86 target:
+# pywebview's edgechromium backend loads WebView2 through pythonnet, and both are Win7-sensitive.
+pywebview==4.4.1 ; sys_platform == "win32"
+pythonnet==3.0.3 ; sys_platform == "win32"

@@ -1,4 +1,4 @@
-"""Shift-login screen: the inspector signs in with their ERPNext account so every inspection
+"""Shift-login screen: the inspector signs in with their Prime Textile account so every inspection
 is recorded under their name. On success, saves credentials and calls on_success(client, full_name)."""
 import threading
 

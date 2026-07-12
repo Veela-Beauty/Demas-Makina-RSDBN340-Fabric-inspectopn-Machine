@@ -1,6 +1,6 @@
 """Turn a missing Win7 DLL / TLS problem into a readable message, not a silent crash.
 
-The ERPNext tunnel needs ssl (OpenSSL DLLs), sqlite3, and certifi. On a bare Win7 x86 box
+The Prime Textile tunnel needs ssl (OpenSSL DLLs), sqlite3, and certifi. On a bare Win7 x86 box
 these can be missing (no VC++ 2015-2022 x86 runtime). Checking them up front lets the app
 say exactly what to install instead of crashing when the operator first hits Save."""
 

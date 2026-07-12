@@ -1,4 +1,4 @@
-"""Config tab (CustomTkinter): ERPNext options, the U-command preset, and the serial log."""
+"""Config tab (CustomTkinter): Prime Textile options, the U-command preset, and the serial log."""
 import tkinter as tk
 import tkinter.messagebox as mb
 
