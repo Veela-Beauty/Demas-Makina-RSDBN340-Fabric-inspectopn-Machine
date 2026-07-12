@@ -8,6 +8,7 @@ import os
 import sys
 import subprocess
 import threading
+import time
 import webbrowser
 
 import customtkinter as ctk
@@ -55,29 +56,40 @@ class WebPanel(ctk.CTkFrame):
         base = self._base_url()
         plan = wv.resolve_launch_plan(base)
         if plan == "no_url":
-            self._set(i18n._("web.no_url"))
+            self._set_status(i18n._("web.no_url"))
             return
         url = wv.build_portal_url(base, path)
         if plan == "embedded":
-            self._set(i18n._("web.opening"))
+            self._set_status(i18n._("web.opening"))
             threading.Thread(target=self._launch_embedded, args=(url,), daemon=True).start()
         else:
-            self._set(i18n._("web.unavailable"))
+            self._set_status(i18n._("web.unavailable"))
             webbrowser.open(url)
 
     def _launch_embedded(self, url):
         title = i18n._("web.title")
         try:
             if getattr(sys, "frozen", False):
-                subprocess.Popen([sys.executable, "--web", url, title])
+                proc = subprocess.Popen([sys.executable, "--web", url, title])
             else:
-                subprocess.Popen([sys.executable, os.path.join(_app_dir(), "web_launcher.py"), url, title])
+                proc = subprocess.Popen(
+                    [sys.executable, os.path.join(_app_dir(), "web_launcher.py"), url, title])
         except Exception:
-            # A launch failure must never break the app — fall back to the browser.
-            self.after(0, lambda: self._set(i18n._("web.unavailable")))
-            webbrowser.open(url)
+            self._fallback_to_browser(url)
+            return
+        # webview_available() only proves the package imports — it can't detect a missing OS
+        # WebView2 runtime, which makes the child die right after start(). Watch briefly and, if it
+        # exited, fall back to the browser so the tab never gets stuck on "Opening...".
+        time.sleep(3)
+        if proc.poll() is not None:
+            self._fallback_to_browser(url)
 
-    def _set(self, text):
+    def _fallback_to_browser(self, url):
+        # Runs on the launch thread — marshal the label update onto the Tk loop.
+        self.after(0, lambda: self._set_status(i18n._("web.unavailable")))
+        webbrowser.open(url)
+
+    def _set_status(self, text):
         try:
             self.status.configure(text=text)
         except Exception:

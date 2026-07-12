@@ -90,7 +90,7 @@ _EN = {
     "web.opening": "Opening Prime Textile...",
     "web.no_url": "Sign in first so the app knows your Prime Textile address.",
     "web.unavailable": "The in-app browser needs the WebView2 runtime. Opening in your default browser instead.",
-    "web.hint": "The embedded view runs the Prime Textile web system inside this window. The native Inspection tab still works without a browser.",
+    "web.hint": "Opens the Prime Textile web system inside this window. If it asks you to sign in, do it once — this machine remembers it. The native Inspection tab always works without a browser.",
 }
 
 _AR = {
@@ -183,7 +183,7 @@ _AR = {
     "web.opening": "جاري فتح Prime Textile...",
     "web.no_url": "سجّل الدخول أولاً ليعرف التطبيق عنوان Prime Textile.",
     "web.unavailable": "المتصفح المدمج يحتاج WebView2. سيتم الفتح في متصفحك الافتراضي بدلاً من ذلك.",
-    "web.hint": "تعرض النافذة المدمجة نظام Prime Textile داخل هذا التطبيق. تبويب الفحص المحلي يعمل بدون متصفح.",
+    "web.hint": "تعرض النافذة المدمجة نظام Prime Textile داخل هذا التطبيق. إذا طُلب تسجيل الدخول، سجّل مرة واحدة وسيتذكرها هذا الجهاز. تبويب الفحص المحلي يعمل دائماً بدون متصفح.",
 }
 
 

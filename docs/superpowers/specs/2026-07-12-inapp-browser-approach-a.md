@@ -46,11 +46,20 @@ API routes were intentionally left unchanged to avoid breaking `frappe.call` pat
 pywebview's edgechromium backend loads WebView2 through pythonnet and both are Win7-sensitive.
 The frozen build bundles the fixed-version WebView2 109 runtime (build step, TODO on CI).
 
+## Review fixes applied (code-review, 3 confirmed findings)
+- **Auth handoff (must-fix)** — `web_launcher.py` now does a **best-effort auto sign-in**: reads the
+  saved credentials (from settings, not argv) and, on first load, fills + submits the Frappe `/login`
+  form via `evaluate_js`. Fully guarded; if selectors don't match, the inspector signs in manually and
+  WebView2's profile remembers it. Copy (`web.hint`) sets that expectation.
+- **Health-check (should-fix)** — `_launch_embedded` keeps the `Popen` handle, waits briefly, and if
+  the child already exited (e.g. missing WebView2 runtime) falls back to the system browser instead of
+  hanging on "Opening…". Now the graceful-degradation covers "runtime missing", not just "package absent".
+- **Naming (nice-to-have)** — `_set` → `_set_status`.
+
 ## Open items (need the Windows box — I can't run WebView2 on Linux)
 1. **Validate the pin combo** (pywebview + pythonnet + WebView2 109) actually loads on Win7 x86.
-2. **Session/auth handoff** — the separate WebView2 process does NOT inherit the Python client's
-   login, so the inspector may hit the Prime Textile login page in the tab. Options: inject the
-   `sid` cookie into the WebView2 profile, or a one-time login the WebView2 profile persists.
+2. **Validate the auto-login form injection** — confirm the `/login` field selectors match the real
+   Prime Textile v15 site, and that `window.events.loaded` / `evaluate_js` behave as expected on WebView2.
 3. **Confirm the desk route** `app/fabric-inspection` for the operator page in prime_textile.
 4. **Bundle + ship the fixed-version WebView2 109 runtime** in the installer/CI.
 5. Optional: dock the WebView2 window into the frame (HWND reparent) for a true child view.
