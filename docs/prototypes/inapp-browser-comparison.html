@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BRL-305 · In-App Browser — Approach Comparison</title>
+<style>
+  :root{
+    --bg:#f8fafc; --card:#ffffff; --fg:#0f172a; --muted:#64748b; --border:#e2e8f0;
+    --field:#ffffff; --primary:#2563eb; --primary-hi:#1d4ed8; --success:#16a34a;
+    --danger:#dc2626; --warn:#b45309; --radius:8px; --fam:"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--fam);font-size:14px;line-height:1.5}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 64px}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:16px;margin:30px 0 12px;letter-spacing:.2px}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0 8px}
+  .fact{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+  .fact .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .fact .v{font-size:15px;font-weight:700;margin-top:4px}
+  .fact .d{font-size:12px;color:var(--muted);margin-top:4px}
+
+  /* segmented control */
+  .seg{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 18px}
+  .seg button{appearance:none;cursor:pointer;border:1px solid var(--border);background:var(--field);
+    color:var(--fg);border-radius:var(--radius);padding:9px 14px;font:inherit;font-weight:600;display:flex;gap:8px;align-items:center}
+  .seg button .dot{width:9px;height:9px;border-radius:50%}
+  .seg button[aria-selected="true"]{border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+  .seg button.rej[aria-selected="true"]{border-color:var(--danger);box-shadow:0 0 0 2px rgba(220,38,38,.15)}
+
+  .layout{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;align-items:start}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}.facts{grid-template-columns:1fr}}
+
+  /* ---- mock of the real BRL-305 CustomTkinter window (Sanad slate) ---- */
+  .app{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+    box-shadow:0 12px 40px -12px rgba(15,23,42,.28)}
+  .titlebar{height:34px;background:#0f1626;display:flex;align-items:center;gap:8px;padding:0 12px;color:#cbd5e1;font-size:12px}
+  .titlebar .tdot{width:11px;height:11px;border-radius:50%}
+  .topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 12px;background:#fff}
+  .pill{border:1px solid var(--border);border-radius:var(--radius);height:30px;display:flex;align-items:center;padding:0 10px;color:var(--muted);font-size:12px}
+  .btn{height:30px;border-radius:var(--radius);padding:0 12px;font-size:12px;font-weight:700;display:flex;align-items:center;border:1px solid transparent}
+  .btn.green{background:var(--success);color:#fff}
+  .btn.ghost{background:var(--field);border-color:var(--border);color:var(--fg);font-weight:600}
+  .led{width:11px;height:11px;border-radius:50%;background:var(--danger)}
+  .spacer{flex:1}
+  .chip{display:flex;align-items:center;gap:7px}
+  .chip .av{width:26px;height:26px;border-radius:50%;background:#dbeafe;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+  .tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--border);background:#fbfcfe}
+  .tab{padding:8px 14px;font-size:13px;color:var(--muted);border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;cursor:default}
+  .tab.active{color:var(--fg);font-weight:700;background:#fff;border-color:var(--border)}
+  .tab.web.active{color:var(--primary)}
+  .stage{position:relative;height:360px;background:#f1f5f9}
+
+  /* embedded ERPNext page mock */
+  .webview{position:absolute;inset:10px;background:#fff;border:1px solid var(--border);border-radius:6px;overflow:hidden;display:flex;flex-direction:column}
+  .webview.child{inset:10px}
+  .erp-nav{height:30px;background:#1f272e;color:#e2e8f0;display:flex;align-items:center;gap:10px;padding:0 10px;font-size:11px}
+  .erp-nav .brand{font-weight:700;color:#fff}
+  .erp-body{flex:1;padding:14px 16px;overflow:auto}
+  .erp-h{font-size:15px;font-weight:700;margin:0 0 2px}
+  .erp-sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+  .erp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .erp-kv{border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+  .erp-kv .kk{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  .erp-kv .vv{font-weight:700;margin-top:2px}
+  .erp-row{display:flex;justify-content:space-between;border-bottom:1px dashed var(--border);padding:7px 0;font-size:12px}
+  .erp-actions{display:flex;gap:8px;margin-top:12px}
+  .erp-actions .b{height:30px;border-radius:6px;padding:0 12px;font-size:12px;font-weight:700;display:flex;align-items:center;color:#fff}
+
+  .browserchrome{height:26px;background:#dfe4ea;border-bottom:1px solid #cbd5e1;display:flex;align-items:center;gap:6px;padding:0 8px}
+  .browserchrome .u{flex:1;background:#fff;border-radius:12px;height:16px;font-size:10px;color:var(--muted);display:flex;align-items:center;padding:0 8px}
+  .badge-float{position:absolute;left:14px;top:14px;background:rgba(15,23,42,.82);color:#fff;font-size:11px;padding:5px 9px;border-radius:6px;z-index:5}
+
+  /* kiosk overlay illustration for approach C */
+  .kiosk{position:absolute;inset:26px 26px 20px 40px;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 16px 40px -10px rgba(2,6,23,.45);display:flex;flex-direction:column;overflow:hidden}
+  .kiosk-tag{position:absolute;right:16px;top:14px;background:var(--warn);color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;z-index:6}
+
+  /* spec panel */
+  .spec{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:0;overflow:hidden}
+  .spec-h{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .spec-h .nm{font-weight:800;font-size:15px}
+  .verdict{margin-left:auto;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:4px 9px;border-radius:20px}
+  .v-rec{background:#dcfce7;color:#166534}
+  .v-fallback{background:#fef9c3;color:#854d0e}
+  .v-dead{background:#fee2e2;color:#991b1b}
+  .spec table{width:100%;border-collapse:collapse}
+  .spec td{padding:10px 16px;border-bottom:1px solid var(--border);vertical-align:top;font-size:13px}
+  .spec td.k{color:var(--muted);width:132px;white-space:nowrap}
+  .rate{font-weight:700}
+  .r-high{color:var(--success)} .r-med{color:var(--warn)} .r-low{color:var(--danger)}
+  .note{padding:12px 16px;font-size:12px;color:var(--muted);background:#fbfcfe}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:10px}
+  .legend b{color:var(--fg)}
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+  .shared{background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius);padding:14px 16px;margin-top:8px;font-size:13px}
+  .shared b{color:var(--primary)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>In-App Browser — Approach Comparison</h1>
+  <p class="sub">BRL-305 Monitor · let the inspector open ERPNext <b>inside</b> the app, no external Chrome window. Target: Windows&nbsp;7 x86 · Python&nbsp;3.8 · ~1&nbsp;GB RAM.</p>
+
+  <h2>The constraint that decides everything</h2>
+  <div class="facts">
+    <div class="fact">
+      <div class="k">Last browser on Win 7</div>
+      <div class="v">Chromium 109</div>
+      <div class="d">Chrome & Edge/WebView2 both froze at v109 (Jan 2023). v110+ needs Win10. So 109 is the newest engine the box can run.</div>
+    </div>
+    <div class="fact">
+      <div class="k">Does 109 run ERPNext v15?</div>
+      <div class="v" style="color:var(--success)">Yes</div>
+      <div class="d">Chromium 109 is a 2023 engine — renders the Frappe/ERPNext v15 desk SPA correctly.</div>
+    </div>
+    <div class="fact">
+      <div class="k">cefpython3 (cleanest embed)</div>
+      <div class="v" style="color:var(--danger)">Chromium 66 · too old</div>
+      <div class="d">Its newest build is a 2018 engine. Great Tkinter integration, but won't render v15 reliably. Rejected.</div>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:6px">So the question is not <i>whether</i> to use Chromium 109 — it's <b>how to host a Chromium-109 engine inside the app.</b> Three ways below.</p>
+
+  <div class="seg" id="seg">
+    <button data-k="webview" aria-selected="true"><span class="dot" style="background:var(--success)"></span>A · pywebview + WebView2 109</button>
+    <button data-k="reparent" aria-selected="false"><span class="dot" style="background:var(--warn)"></span>B · Reparent Chrome 109</button>
+    <button data-k="kiosk" aria-selected="false"><span class="dot" style="background:var(--warn)"></span>C · Chrome 109 app-mode</button>
+    <button data-k="cef" class="rej" aria-selected="false"><span class="dot" style="background:var(--danger)"></span>✕ cefpython3 (rejected)</button>
+  </div>
+
+  <div class="layout">
+    <!-- left: live app-window mock -->
+    <div class="app">
+      <div class="titlebar">
+        <span class="tdot" style="background:#ef4444"></span>
+        <span class="tdot" style="background:#f59e0b"></span>
+        <span class="tdot" style="background:#22c55e"></span>
+        <span style="margin-left:6px">BRL-305 Monitor</span>
+      </div>
+      <div class="topbar">
+        <span class="pill">Port · COM3</span>
+        <span class="btn green">Connect</span>
+        <span class="led"></span>
+        <span style="color:var(--muted);font-size:12px">Disconnected</span>
+        <span class="spacer"></span>
+        <span class="btn ghost">العربية</span>
+        <span class="btn ghost">Dark</span>
+        <span class="chip"><span class="av">EM</span><b style="font-size:12px">Eslam M.</b></span>
+      </div>
+      <div class="tabs">
+        <span class="tab">Dashboard</span>
+        <span class="tab">Machine Errors</span>
+        <span class="tab">ERPNext (native)</span>
+        <span class="tab web active" id="webtab">Inspection · Web</span>
+      </div>
+      <div class="stage" id="stage"><!-- filled by JS --></div>
+    </div>
+
+    <!-- right: spec sheet -->
+    <div class="spec" id="spec"><!-- filled by JS --></div>
+  </div>
+
+  <div class="shared">
+    <b>Shared reality for every browser approach:</b> the box must reach the ERPNext server over the network (our tunnel already proves it does), and Chromium&nbsp;109 uses ~300–500&nbsp;MB — tight in 1&nbsp;GB. So in every option the <b>native tunnel tabs stay</b> as the always-available, lightweight machine path; the embedded browser is an <i>added</i> view, not a replacement.
+  </div>
+
+  <div class="legend">
+    <span><b>In-window</b> = rendered inside the app frame (not a separate window)</span>
+    <span><b>Self-contained</b> = no runtime we must install separately on the box</span>
+  </div>
+
+  <footer>
+    Prototype for comparison only — pick an approach, then we spec + build. Native embedding behaviour (reparenting, WebView2 docking) can't be fully shown in HTML; the mocks illustrate the resulting UX, and the spec sheet carries the real trade-offs.
+  </footer>
+</div>
+
+<script>
+const DATA = {
+  webview:{
+    name:"A · pywebview + WebView2 (Chromium 109)",
+    verdict:"Recommended", vclass:"v-rec",
+    inwindow:"Yes — native docked control",
+    engine:"Edge WebView2 runtime (last Win7 build = 109 / Chromium 109)",
+    deps:"pywebview + pythonnet (.NET/clr) + WebView2 runtime present on box",
+    bundle:"App small; ship the fixed-version WebView2 109 runtime (~130 MB) so we don't depend on what's installed",
+    robust:["r-high","High"],
+    effort:["r-med","Medium"],
+    risk:"Must bundle the fixed-version 109 runtime (Win7 no longer gets it via Evergreen); verify pythonnet on Py3.8 x86.",
+    why:"Microsoft-maintained control, truly embedded in the window, renders v15. Cleanest 'feels like one app' result once the runtime is bundled.",
+    render:"child"
+  },
+  reparent:{
+    name:"B · Reparent portable Chrome 109 (pywin32 SetParent)",
+    verdict:"Fallback", vclass:"v-fallback",
+    inwindow:"Yes — Chrome's HWND re-parented into the Tk frame",
+    engine:"Bundled portable Chrome/Chromium 109",
+    deps:"pywin32 (SetParent / MoveWindow); bundled Chrome 109",
+    bundle:"Portable Chrome 109 (~150–200 MB) shipped with the app",
+    robust:["r-low","Med–Low"],
+    effort:["r-low","High"],
+    risk:"Fragile: focus theft, resize/redraw glitches, z-order, DPI. Breaks on some Tk redraws; needs careful geometry syncing.",
+    why:"Self-contained (no runtime dependency) and genuinely in-window, but the window-plumbing is the most brittle and the most code.",
+    render:"child"
+  },
+  kiosk:{
+    name:"C · Chrome 109 app-mode window (--app / --kiosk)",
+    verdict:"Fallback", vclass:"v-fallback",
+    inwindow:"No — a borderless window placed over the app",
+    engine:"Bundled portable Chrome 109",
+    deps:"Just launch Chrome 109 with flags; sync its position to the app window",
+    bundle:"Portable Chrome 109 (~150–200 MB)",
+    robust:["r-high","High"],
+    effort:["r-high","Low"],
+    risk:"It's a separate top-level window: shows in Alt-Tab, must be moved/closed with the app; not a true child.",
+    why:"Most robust and least code. Chromeless so it looks docked, but it isn't literally inside the frame. Fastest to ship.",
+    render:"kiosk"
+  },
+  cef:{
+    name:"✕ cefpython3 (Chromium 66)",
+    verdict:"Dead on arrival", vclass:"v-dead",
+    inwindow:"Yes — the cleanest Tkinter embed of all",
+    engine:"Chromium 66 (2018) — newest cefpython3 ever shipped",
+    deps:"pip install cefpython3 (win32 wheel, works on Py3.8)",
+    bundle:"~80 MB",
+    robust:["r-med","N/A"],
+    effort:["r-high","N/A"],
+    risk:"2018 engine: missing modern JS/CSS the Frappe v15 desk uses. Renders broken / blank.",
+    why:"Perfect integration, wrong engine. Only usable if we render a stripped-down legacy page — not the real v15 desk.",
+    render:"broken"
+  }
+};
+
+function erpPage(){
+  return `
+    <div class="erp-nav"><span class="brand">ERPNext</span><span>Fabric Inspection</span><span style="margin-left:auto">Prime Textile</span></div>
+    <div class="erp-body">
+      <h3 class="erp-h">Fabric Inspection — MAT-QA-2026-00033</h3>
+      <div class="erp-sub">Work Order WO-2026-0188 · Roll 12 · signed in as Eslam M.</div>
+      <div class="erp-grid">
+        <div class="erp-kv"><div class="kk">Item</div><div class="vv">Cotton 40s</div></div>
+        <div class="erp-kv"><div class="kk">Shade</div><div class="vv">Navy 19-4023</div></div>
+        <div class="erp-kv"><div class="kk">Length</div><div class="vv">118 m</div></div>
+        <div class="erp-kv"><div class="kk">Weight</div><div class="vv">24.6 kg</div></div>
+      </div>
+      <div class="erp-row"><span>12.4 m</span><span>Slub</span><span>minor</span></div>
+      <div class="erp-row"><span>47.9 m</span><span>Oil stain</span><span>major</span></div>
+      <div class="erp-row"><span>83.1 m</span><span>Hole</span><span>major</span></div>
+      <div class="erp-actions">
+        <span class="b" style="background:var(--primary)">Save</span>
+        <span class="b" style="background:var(--success)">Confirm &amp; Submit</span>
+      </div>
+    </div>`;
+}
+
+function renderStage(k){
+  const d=DATA[k], s=document.getElementById('stage');
+  if(d.render==='kiosk'){
+    s.innerHTML = `<div class="badge-float">App window (dimmed) — the browser is a separate borderless window</div>
+      <div class="kiosk"><div class="kiosk-tag">separate top-level window</div>${erpPage()}</div>`;
+  } else if(d.render==='broken'){
+    s.innerHTML = `<div class="webview child">
+        <div class="erp-nav"><span class="brand">ERPNext</span><span>Fabric Inspection</span></div>
+        <div class="erp-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--danger);text-align:center">
+          <div style="font-size:34px;line-height:1">⚠</div>
+          <div style="font-weight:700;margin-top:8px">Page failed to load correctly</div>
+          <div style="color:var(--muted);font-size:12px;max-width:260px;margin-top:6px">Chromium 66 (2018) can't run the v15 desk's modern JavaScript. Layout breaks / scripts error out.</div>
+        </div></div>`;
+  } else {
+    s.innerHTML = `<div class="badge-float">Rendered inside the app frame (docked child)</div>
+      <div class="webview child">${erpPage()}</div>`;
+  }
+}
+
+function renderSpec(k){
+  const d=DATA[k];
+  document.getElementById('spec').innerHTML = `
+    <div class="spec-h"><span class="nm">${d.name}</span><span class="verdict ${d.vclass}">${d.verdict}</span></div>
+    <table>
+      <tr><td class="k">In-window</td><td>${d.inwindow}</td></tr>
+      <tr><td class="k">Engine</td><td>${d.engine}</td></tr>
+      <tr><td class="k">Dependencies</td><td>${d.deps}</td></tr>
+      <tr><td class="k">Bundle</td><td>${d.bundle}</td></tr>
+      <tr><td class="k">Robustness</td><td class="rate ${d.robust[0]}">${d.robust[1]}</td></tr>
+      <tr><td class="k">Build effort</td><td class="rate ${d.effort[0]}">${d.effort[1]}</td></tr>
+      <tr><td class="k">Main risk</td><td>${d.risk}</td></tr>
+    </table>
+    <div class="note"><b style="color:var(--fg)">Why</b> — ${d.why}</div>`;
+}
+
+function select(k){
+  document.querySelectorAll('#seg button').forEach(b=>b.setAttribute('aria-selected', b.dataset.k===k));
+  renderStage(k); renderSpec(k);
+}
+document.getElementById('seg').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(b) select(b.dataset.k);
+});
+select('webview');
+</script>
+</body>
+</html>
